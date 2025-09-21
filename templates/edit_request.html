@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Request</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .edit-form-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.10);
+            padding: 36px 32px;
+        }
+        .edit-form-container h2 {
+            color: #2563eb;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .edit-form-container label {
+            font-weight: 500;
+            margin-top: 18px;
+            display: block;
+        }
+        .edit-form-container input, .edit-form-container select, .edit-form-container textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            font-size: 1rem;
+        }
+        .edit-form-container button {
+            margin-top: 28px;
+            padding: 12px 32px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .edit-form-container button:hover {
+            background: #1746a2;
+        }
+    </style>
+</head>
+<body>
+    <div class="edit-form-container">
+        <h2>Edit Request</h2>
+        <form method="post">
+            <label>Reference No.</label>
+            <input type="text" name="reference_no" value="{{ req.reference_no }}" required>
+
+            <label>Date of Request</label>
+            <input type="date" name="date_of_request" value="{{ req.date_of_request }}" required>
+
+            <label>Request Type</label>
+            <select name="request_type" required>
+                <option value="Purchase" {% if req.request_type == 'Purchase' %}selected{% endif %}>Purchase</option>
+                <option value="Finance" {% if req.request_type == 'Finance' %}selected{% endif %}>Finance</option>
+                <option value="IT" {% if req.request_type == 'IT' %}selected{% endif %}>IT</option>
+                <option value="HR" {% if req.request_type == 'HR' %}selected{% endif %}>HR</option>
+                <option value="Other" {% if req.request_type == 'Other' %}selected{% endif %}>Other</option>
+            </select>
+
+            <label>Description / Purpose</label>
+            <textarea name="description" required>{{ req.description }}</textarea>
+
+            <label>Quantity</label>
+            <input type="number" name="quantity" min="1" value="{{ req.quantity }}">
+
+            <label>Estimated Cost / Budget</label>
+            <input type="number" name="estimated_cost" step="0.01" value="{{ req.estimated_cost }}">
+
+            <label>Priority Level</label>
+            <select name="priority_level" required>
+                <option value="High" {% if req.priority_level == 'High' %}selected{% endif %}>High</option>
+                <option value="Medium" {% if req.priority_level == 'Medium' %}selected{% endif %}>Medium</option>
+                <option value="Low" {% if req.priority_level == 'Low' %}selected{% endif %}>Low</option>
+            </select>
+
+            <label>Supporting Documents Attached</label>
+            <select name="supporting_documents" required>
+                <option value="No" {% if req.supporting_documents == 'No' %}selected{% endif %}>No</option>
+                <option value="Yes" {% if req.supporting_documents == 'Yes' %}selected{% endif %}>Yes</option>
+            </select>
+
+            <label>Remarks</label>
+            <textarea name="remarks">{{ req.remarks }}</textarea>
+
+            <button type="submit">Save Changes</button>
+        </form>
+    </div>
+</body>
+</html>

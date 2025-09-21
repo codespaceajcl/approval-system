@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Portal Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/js/dashboard_charts.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f5f7fa;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 240px;
+      background: #1e293b;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 0;
+    }
+    .sidebar h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 1.4rem;
+      color: #38bdf8;
+    }
+    .sidebar a {
+      padding: 12px 20px;
+      color: #cbd5e1;
+      text-decoration: none;
+      display: block;
+      transition: background 0.2s;
+    }
+    .sidebar a:hover {
+      background: #334155;
+      color: #fff;
+    }
+
+    /* Main content */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Navbar */
+    .navbar {
+      height: 60px;
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+    }
+    .navbar .title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .navbar .user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 500;
+    }
+    .navbar .user img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+    }
+
+    /* Stats section */
+    .stats {
+      display: flex;
+      gap: 20px;
+      padding: 20px;
+      background: #f8fafc;
+    }
+    .stat-box {
+      flex: 1;
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    /* Table */
+    .table-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    th, td {
+      padding: 14px 12px;
+      text-align: left;
+      font-size: 0.95rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .status-approved { color: #16a34a; font-weight: 600; }
+    .status-pending { color: #eab308; font-weight: 600; }
+
+    .approve-link {
+      background: #16a34a;
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .approve-link:hover { background: #15803d; }
+    .attachment-link {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+    <div class="sidebar">
+  <h2>My Portal</h2>
+  <a href="/dashboard">🏠 Dashboard</a>
+  <a href="/requests">📑 Requests</a>
+  {% if role != 'Finance' and role != 'finance' %}
+    <a href="/add-request">➕ Add Request</a>
+  {% endif %}
+  {% if role in ['manager', 'senior_manager', 'Finance', 'finance'] %}
+    <a href="/add-user">👤 Register User</a>
+  {% endif %}
+  {% if role == 'senior_manager' %}
+    <a href="/add-department">🏢 Add Department</a>
+  {% endif %}
+  <a href="/logout">🚪 Logout</a>
+  </div>
+
+  <!-- Main content -->
+  <div class="main">
+    <!-- Navbar -->
+    <div class="navbar">
+      <div style="display:flex; align-items:center; gap:18px;">
+        <div class="title">Request Dashboard</div>
+        <!-- Add Request button removed from dashboard main content -->
+      </div>
+      <div class="user">
+        <span>Muhammad Sohaib</span>
+        <img src="https://via.placeholder.com/36" alt="User"/>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-label">Total Requests</div>
+        <div class="stat-value">{{ requests|length }}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Approved</div>
+        <div class="stat-value">
+          {{ requests|selectattr('status','equalto','approved')|list|length }}
+        </div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Pending</div>
+        <div class="stat-value">
+          {{ requests|selectattr('status','equalto','pending')|list|length }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div style="display:flex; gap:32px; padding:20px 20px 0 20px;">
+      <div style="flex:1; background:#fff; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.05); padding:24px;">
+        <h3 style="margin-top:0; color:#2575fc; font-size:1.1rem;">Add Request Trend (Date-wise)</h3>
+        <canvas id="trendChart" height="120"></canvas>
+      </div>
+      <div style="flex:1; background:#fff; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.05); padding:24px;">
+        <h3 style="margin-top:0; color:#2575fc; font-size:1.1rem;">Requests by Department (Bar Chart)</h3>
+        <canvas id="deptChart" height="120"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart Data for JS -->
+    <script id="trend-data" type="application/json">
+      {{ trend_data|tojson|safe }}
+    </script>
+    <script id="dept-data" type="application/json">
+      {{ dept_data|tojson|safe }}
+    </script>
+
+    <!-- Table -->
+    <div class="table-container">
+      <table>
+        <tr>
+          <th>Reference No.</th>
+          <th>Date of Request</th>
+          <th>Requested By</th>
+          <th>Request Type</th>
+          <th>Description</th>
+          <th>Quantity</th>
+          <th>Priority</th>
+          <th>Approval Status</th>
+        </tr>
+        {% for req in requests %}
+        <tr>
+          <td>{{ req.reference_no }}</td>
+          <td>{{ req.date_of_request }}</td>
+          <td>{{ req.requested_by }}</td>
+          <td>{{ req.request_type }}</td>
+          <td>{{ req.description }}</td>
+          <td>{{ req.quantity }}</td>
+          <td>{{ req.priority_level }}</td>
+          <td class="status-{{ req.approval_status }}">{{ req.approval_status|capitalize }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+</body>
+</html>

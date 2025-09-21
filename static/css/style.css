@@ -1,0 +1,9 @@
+body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+h2 { color: #333; }
+form { margin-bottom: 20px; }
+input, textarea { margin: 5px 0; padding: 8px; width: 250px; }
+button { padding: 8px 16px; background: #007bff; color: #fff; border: none; cursor: pointer; }
+table { background: #fff; border-collapse: collapse; width: 100%; margin-top: 20px; }
+th, td { padding: 10px; border: 1px solid #ccc; }
+a { color: #007bff; text-decoration: none; margin-right: 10px; }
+a:hover { text-decoration: underline; }

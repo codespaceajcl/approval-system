@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Requests</title>
+  <style>
+    .modal-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 18px;
+  font-size: 0.85rem;
+      color: #1e293b;
+      margin-bottom: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #f8fafc;
+      box-shadow: 0 2px 12px rgba(56,189,248,0.08);
+      padding: 18px 16px;
+    }
+    .modal-details b {
+      color: #2575fc;
+      font-weight: 500;
+      margin-right: 4px;
+  font-size: 0.85rem;
+    }
+    .modal-details .full-row {
+      grid-column: 1 / span 2;
+    }
+    .modal-details .download-btn {
+      display: inline-block;
+      padding: 7px 18px;
+      background: linear-gradient(90deg, #2575fc 0%, #38bdf8 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      margin-top: 4px;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+    .modal-details .download-btn:hover {
+      background: linear-gradient(90deg, #38bdf8 0%, #2575fc 100%);
+    }
+    /* Modal Styles */
+    #detailsModal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(30,41,59,0.4);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      animation: fadeIn 0.2s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .modal-card {
+      background: #fff;
+      border-radius: 18px;
+      max-width: 700px;
+      width: 98%;
+      padding: 36px 36px 28px 36px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+      position: relative;
+      animation: slideUp 0.3s;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(40px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: none;
+      border: none;
+      font-size: 2rem;
+      color: #2575fc;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .modal-close:hover {
+      color: #38bdf8;
+    }
+    .modal-title {
+      margin-top: 0;
+      color: #2575fc;
+      font-size: 1.5rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .modal-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px 24px;
+      font-size: 0.85rem;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    .modal-details b {
+      color: #2575fc;
+      font-weight: 600;
+      margin-right: 6px;
+    }
+    .modal-details .full-row {
+      grid-column: 1 / span 2;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f5f7fa;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 240px;
+      background: #1e293b;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      padding: 20px 0;
+      box-sizing: border-box;
+      min-height: 100vh;
+    }
+    .sidebar h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 1.4rem;
+      color: #38bdf8;
+    }
+    .sidebar a {
+      padding: 12px 20px;
+      color: #cbd5e1;
+      text-decoration: none;
+      display: block;
+      transition: background 0.2s;
+      font-size: 1rem;
+      border-radius: 6px;
+      margin: 0;
+    }
+    .sidebar a:hover {
+      background: #334155;
+      color: #fff;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .navbar {
+      height: 60px;
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+    }
+    .navbar .title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .navbar .user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 500;
+    }
+    .navbar .user img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+    }
+    .table-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    th, td {
+      padding: 14px 12px;
+      text-align: left;
+      font-size: 0.95rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    th {
+      background: #f1f5f9;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    .status-approved { color: #16a34a; font-weight: 600; }
+    .status-pending { color: #eab308; font-weight: 600; }
+    .approve-link {
+      background: #16a34a;
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .approve-link:hover { background: #15803d; }
+    .attachment-link {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>My Portal</h2>
+    <a href="/dashboard">🏠 Dashboard</a>
+    <a href="/requests">📑 Requests</a>
+    {% if role != 'Finance' and role != 'finance' %}
+      <a href="/add-request">➕ Add Request</a>
+    {% endif %}
+    {% if role in ['manager', 'senior_manager', 'Finance', 'finance'] %}
+      <a href="/add-user">👤 Register User</a>
+    {% endif %}
+    {% if role == 'senior_manager' %}
+      <a href="/add-department">🏢 Add Department</a>
+    {% endif %}
+    <a href="/logout">🚪 Logout</a>
+  </div>
+  <!-- Main content -->
+  <div class="main">
+    <!-- Navbar -->
+    <div class="navbar">
+      <div style="display:flex; align-items:center; gap:18px;">
+        <div class="title">Requests</div>
+      </div>
+      <div class="user">
+        <span>Muhammad Sohaib</span>
+        <img src="https://via.placeholder.com/36" alt="User"/>
+      </div>
+    </div>
+    <!-- Table -->
+    <div class="table-container">
+      <table>
+        <tr>
+          <th>Reference No.</th>
+          <th>Date of Request</th>
+          <th>Requested By</th>
+          <th>Request Type</th>
+          <th>Description</th>
+          <th>Quantity</th>
+          <th>Priority</th>
+          <th>Approval Status</th>
+          <th>View Details</th>
+        </tr>
+        {% for req in requests %}
+        <tr>
+          <td>{{ req.reference_no }}</td>
+          <td>{{ req.date_of_request }}</td>
+          <td>{{ req.requested_by }}</td>
+          <td>{{ req.request_type }}</td>
+          <td>{{ req.description }}</td>
+          <td>{{ req.quantity }}</td>
+          <td>{{ req.priority_level }}</td>
+          <td class="status-{{ req.approval_status|lower }}">{{ req.approval_status|capitalize }}</td>
+          <td><button class="view-details-btn" data-details='{{ req|tojson|safe }}' style="padding:6px 14px; border-radius:6px; background:#2575fc; color:#fff; border:none; cursor:pointer;">View Details</button></td>
+        </tr>
+        {% endfor %}
+    <!-- Modal for request details -->
+    <div id="detailsModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(30,41,59,0.4); z-index:1000; justify-content:center; align-items:center;">
+      <div class="modal-card">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <h2 class="modal-title">Request Details</h2>
+        <div id="modalContent"></div>
+      </div>
+    </div>
+    <script>
+      function showAttachmentModal(id) {
+        var modal = document.getElementById('attachmentModal');
+        if (modal) {
+          modal.style.display = 'flex';
+          document.getElementById('attachmentReqId').value = id;
+        }
+      }
+      function closeAttachmentModal() {
+        document.getElementById('attachmentModal').style.display = 'none';
+      }
+      function submitCompleteAttachment() {
+        var id = document.getElementById('attachmentReqId').value;
+        var input = document.getElementById('attachmentInput');
+        var file = input && input.files[0];
+        // Remove previous error
+        input.style.border = '1px solid #cbd5e1';
+        var errorMsg = document.getElementById('attachmentErrorMsg');
+        if (errorMsg) errorMsg.remove();
+        if (!file) {
+          input.style.border = '2px solid #e11d48';
+          var msg = document.createElement('div');
+          msg.id = 'attachmentErrorMsg';
+          msg.style = 'color:#e11d48;font-weight:500;margin-bottom:10px;';
+          msg.innerText = 'Attachment is required.';
+          input.parentNode.insertBefore(msg, input.nextSibling);
+          input.focus();
+          return;
+        }
+        var formData = new FormData();
+        formData.append('id', id);
+        formData.append('status', 'Completed');
+        formData.append('attachment', file);
+        fetch('/update-status', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('attachmentModal').style.display = 'none';
+          if (data.success) {
+            document.getElementById('modalContent').innerHTML = `
+              <div style="text-align:center;padding:32px 0;">
+                <h3 style="color:#16a34a;margin-bottom:18px;">Status updated to <span style='color:#2563eb'>Completed</span>!</h3>
+                <button onclick="closeModal(); location.reload();" style="padding:10px 28px;background:#2575fc;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;">OK</button>
+              </div>
+            `;
+          } else {
+            document.getElementById('modalContent').innerHTML = `<div style='color:#e11d48;text-align:center;padding:32px 0;'>Error updating status.</div>`;
+          }
+        })
+        .catch(() => {
+          document.getElementById('modalContent').innerHTML = `<div style='color:#e11d48;text-align:center;padding:32px 0;'>Error updating status.</div>`;
+        });
+      }
+      document.querySelectorAll('.view-details-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var req = JSON.parse(this.getAttribute('data-details'));
+          var html = `<div class='modal-details'>
+            <div><b>Reference No.:</b> ${req.reference_no}</div>
+            <div><b>Date of Request:</b> ${req.date_of_request}</div>
+            <div><b>Requested By:</b> ${req.requested_by}</div>
+            <div><b>Request Type:</b> ${req.request_type}</div>
+            <div class='full-row'><b>Description:</b> ${req.description}</div>
+            <div><b>Quantity:</b> ${req.quantity}</div>
+            <div><b>Estimated Cost:</b> ${req.estimated_cost}</div>
+            <div><b>Priority Level:</b> ${req.priority_level}</div>
+            <div><b>Supporting Docs:</b> ${req.supporting_documents}</div>
+            <div><b>Approval Status:</b> ${req.approval_status}</div>
+            <div><b>Approved By:</b> ${req.approved_by}</div>
+            <div><b>Remarks:</b> ${req.remarks}</div>
+            <div><b>Attachment:</b> ${req.attachment ? `<a class='download-btn' href='/${req.attachment}' download>Download</a>` : '-'} </div>
+            <div><b>Financial Reference:</b> ${req.financial_reference ? `<a class='download-btn' href='/${req.financial_reference}' download>Download</a>` : '-'} </div>
+            <div><b>Created By:</b> ${req.created_by || '-'} </div>
+            <div><b>Created At:</b> ${req.created_date || '-'} </div>
+          </div>`;
+
+          // Add update status buttons based on role and request status
+          var role = "{{ role }}";
+          var status = (req.status || req.approval_status || '').toLowerCase();
+          var btnHtml = '';
+          if (role === 'manager') {
+            if (status === 'submitted' || status === 'pending' || status === 'under review' || status === 'provisionally rejected') {
+              btnHtml += `<button onclick=\"updateStatus('${req.id}', 'Provisionally Approved')\" style=\"margin:8px 8px 0 0; padding:8px 24px; background:#16a34a; color:#fff; border:none; border-radius:8px; font-weight:600;\">Provisionally Approve</button>`;
+              btnHtml += `<button onclick=\"updateStatus('${req.id}', 'Provisionally Rejected')\" style=\"margin:8px 0 0 0; padding:8px 24px; background:#e11d48; color:#fff; border:none; border-radius:8px; font-weight:600;\">Provisionally Reject</button>`;
+            }
+          } else if (role === 'senior_manager' || role === 'Senior Manager') {
+            if (status === 'submitted' || status === 'pending' || status === 'under review' || status === 'provisionally approved' || status === 'provisionally rejected') {
+              btnHtml += `<button onclick=\"updateStatus('${req.id}', 'Approved')\" style=\"margin:8px 8px 0 0; padding:8px 24px; background:#16a34a; color:#fff; border:none; border-radius:8px; font-weight:600;\">Approve</button>`;
+              btnHtml += `<button onclick=\"updateStatus('${req.id}', 'Rejected')\" style=\"margin:8px 0 0 0; padding:8px 24px; background:#e11d48; color:#fff; border:none; border-radius:8px; font-weight:600;\">Reject</button>`;
+            }
+          } else if (role === 'finance') {
+            btnHtml += `<button type='button' onclick=\"showAttachmentModal('${req.id}')\" style=\"margin:8px 0 0 0; padding:8px 24px; background:#16a34a; color:#fff; border:none; border-radius:8px; font-weight:600;\">Complete</button>`;
+          }
+          // Employee has no button
+          // Add edit button for eligible requests
+          var statusVal = (req.status || req.approval_status || '').trim().toLowerCase();
+          var isSeniorManager = role === 'senior_manager' || role === 'Senior Manager';
+          var approvalStatusVal = (req.approval_status || '').trim().toLowerCase();
+          if (((statusVal === 'submitted' || approvalStatusVal === 'submitted') && (role === 'manager' || role === 'employee')) || (approvalStatusVal === 'provisionally approved' && isSeniorManager)) {
+            btnHtml += `<div style='margin-top:18px; display:flex; justify-content:flex-end;'><a href='/edit-request/${req.id}' class='btn btn-warning' style='padding:10px 28px; background:#f59e42; color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:600; display:inline-block;'>Edit Request</a></div>`;
+          }
+          document.getElementById('modalContent').innerHTML = html + btnHtml;
+          // Debug output for troubleshooting
+          var debugInfo = `<div style='margin-top:18px;color:#64748b;font-size:0.95rem;'>[Debug] Role: <b>${role}</b>, Status: <b>${req.status}</b>, Approval Status: <b>${req.approval_status}</b></div>`;
+          document.getElementById('modalContent').innerHTML = html + btnHtml + debugInfo;
+          // Attachment modal HTML
+          if (!document.getElementById('attachmentModal')) {
+            var attachModal = document.createElement('div');
+            attachModal.id = 'attachmentModal';
+            attachModal.style = 'display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(30,41,59,0.4); z-index:2000; justify-content:center; align-items:center;';
+            attachModal.innerHTML = `<div class='modal-card'><button class='modal-close' onclick='closeAttachmentModal()'>&times;</button><h2 class='modal-title'>Upload Attachment</h2><form id='attachmentForm' enctype='multipart/form-data' style='margin-top:18px;'><input type='file' name='attachment' id='attachmentInput' style='margin-bottom:18px;' required><input type='hidden' name='req_id' id='attachmentReqId'><button type='button' onclick='submitCompleteAttachment()' style='padding:10px 28px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;'>Submit</button></form></div>`;
+            document.body.appendChild(attachModal);
+          }
+          window.showAttachmentModal = function(id) {
+            var modal = document.getElementById('attachmentModal');
+            if (modal) {
+              modal.style.display = 'flex';
+              document.getElementById('attachmentReqId').value = id;
+            }
+          }
+          document.getElementById('detailsModal').style.display = 'flex';
+        });
+      });
+
+      // Dummy updateStatus function (replace with AJAX or form submission)
+      window.submitComplete = function(id) {
+      window.showAttachmentModal = function(id) {
+        document.getElementById('attachmentModal').style.display = 'flex';
+        document.getElementById('attachmentReqId').value = id;
+      }
+      window.closeAttachmentModal = function() {
+        document.getElementById('attachmentModal').style.display = 'none';
+      }
+      window.submitCompleteAttachment = function() {
+        var id = document.getElementById('attachmentReqId').value;
+        var input = document.getElementById('attachmentInput');
+        var file = input && input.files[0];
+        // Remove previous error
+        input.style.border = '1px solid #cbd5e1';
+        var errorMsg = document.getElementById('attachmentErrorMsg');
+        if (errorMsg) errorMsg.remove();
+        if (!file) {
+          input.style.border = '2px solid #e11d48';
+          var msg = document.createElement('div');
+          msg.id = 'attachmentErrorMsg';
+          msg.style = 'color:#e11d48;font-weight:500;margin-bottom:10px;';
+          msg.innerText = 'Attachment is required.';
+          input.parentNode.insertBefore(msg, input.nextSibling);
+          input.focus();
+          return;
+        }
+        var formData = new FormData();
+        formData.append('id', id);
+        formData.append('status', 'Completed');
+        formData.append('attachment', file);
+        fetch('/update-status', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById('attachmentModal').style.display = 'none';
+          if (data.success) {
+            document.getElementById('modalContent').innerHTML = `
+              <div style="text-align:center;padding:32px 0;">
+                <h3 style="color:#16a34a;margin-bottom:18px;">Status updated to <span style='color:#2563eb'>Completed</span>!</h3>
+                <button onclick="closeModal(); location.reload();" style="padding:10px 28px;background:#2575fc;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;">OK</button>
+              </div>
+            `;
+          } else {
+            document.getElementById('modalContent').innerHTML = `<div style='color:#e11d48;text-align:center;padding:32px 0;'>Error updating status.</div>`;
+          }
+        })
+        .catch(() => {
+          document.getElementById('modalContent').innerHTML = `<div style='color:#e11d48;text-align:center;padding:32px 0;'>Error updating status.</div>`;
+        });
+      }
+      }
+      window.updateStatus = function(id, newStatus) {
+        // Always use FormData and multipart request for status updates
+        var formData = new FormData();
+        formData.append('id', id);
+        formData.append('status', newStatus);
+        fetch('/update-status', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            document.getElementById('modalContent').innerHTML = `
+              <div style="text-align:center;padding:32px 0;">
+                <h3 style="color:#16a34a;margin-bottom:18px;">Status updated to <span style='color:#2563eb'>${newStatus}</span>!</h3>
+                <button onclick="closeModal(); location.reload();" style="padding:10px 28px;background:#2575fc;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;">OK</button>
+              </div>
+            `;
+          } else {
+            document.getElementById('modalContent').innerHTML = `<div style='color:#e11d48;text-align:center;padding:32px 0;'>Error updating status.</div>`;
+          }
+        })
+        .catch(() => {
+          document.getElementById('modalContent').innerHTML = `<div style='color:#e11d48;text-align:center;padding:32px 0;'>Error updating status.</div>`;
+        });
+      }
+      function closeModal() {
+        document.getElementById('detailsModal').style.display = 'none';
+      }
+    </script>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
