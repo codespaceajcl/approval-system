@@ -1,0 +1,152 @@
+{
+  "info": {
+    "name": "Approval System API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for all Approval System API endpoints."
+  },
+  "item": [
+    {
+      "name": "Sign In",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+        ],
+        "url": { "raw": "http://localhost:5001/", "protocol": "http", "host": ["localhost"], "port": "5001", "path": [""] },
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "email", "value": "user@example.com" },
+            { "key": "password", "value": "password" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Dashboard",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "http://localhost:5001/dashboard", "protocol": "http", "host": ["localhost"], "port": "5001", "path": ["dashboard"] },
+        "header": [
+          { "key": "Cookie", "value": "jwt_token={{jwt_token}}" }
+        ]
+      }
+    },
+    {
+      "name": "Add Request",
+      "request": {
+        "method": "POST",
+        "url": { "raw": "http://localhost:5001/add-request", "protocol": "http", "host": ["localhost"], "port": "5001", "path": ["add-request"] },
+        "header": [
+          { "key": "Cookie", "value": "jwt_token={{jwt_token}}" },
+          { "key": "Content-Type", "value": "multipart/form-data" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "reference_no", "value": "REF123", "type": "text" },
+            { "key": "date_of_request", "value": "2025-09-22", "type": "text" },
+            { "key": "requested_by", "value": "John Doe", "type": "text" },
+            { "key": "request_type", "value": "Purchase", "type": "text" },
+            { "key": "description", "value": "Buy laptops", "type": "text" },
+            { "key": "quantity", "value": "5", "type": "text" },
+            { "key": "estimated_cost", "value": "5000", "type": "text" },
+            { "key": "priority_level", "value": "High", "type": "text" },
+            { "key": "supporting_documents", "value": "Yes", "type": "text" },
+            { "key": "remarks", "value": "Urgent", "type": "text" },
+            { "key": "attachment", "type": "file" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Approve Request",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "http://localhost:5001/approve/1", "protocol": "http", "host": ["localhost"], "port": "5001", "path": ["approve", "1"] },
+        "header": [
+          { "key": "Cookie", "value": "jwt_token={{jwt_token}}" }
+        ]
+      }
+    },
+    {
+      "name": "Logout",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "http://localhost:5001/logout", "protocol": "http", "host": ["localhost"], "port": "5001", "path": ["logout"] },
+        "header": [
+          { "key": "Cookie", "value": "jwt_token={{jwt_token}}" }
+        ]
+      }
+    },
+    {
+      "name": "Get Requests",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "http://localhost:5001/requests", "protocol": "http", "host": ["localhost"], "port": "5001", "path": ["requests"] },
+        "header": [
+          { "key": "Cookie", "value": "jwt_token={{jwt_token}}" }
+        ]
+      }
+    },
+    {
+      "name": "Add User",
+      "request": {
+        "method": "POST",
+        "url": { "raw": "http://localhost:5001/add-user", "protocol": "http", "host": ["localhost"], "port": "5001", "path": ["add-user"] },
+        "header": [
+          { "key": "Cookie", "value": "jwt_token={{jwt_token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Jane Doe\",\n  \"id\": 1,\n  \"status\": \"Approved\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Update Status",
+      "request": {
+        "method": "POST",
+        "url": { "raw": "http://localhost:5001/update-status", "protocol": "http", "host": ["localhost"], "port": "5001", "path": ["update-status"] },
+        "header": [
+          { "key": "Cookie", "value": "jwt_token={{jwt_token}}" },
+          { "key": "Content-Type", "value": "multipart/form-data" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "id", "value": "1", "type": "text" },
+            { "key": "status", "value": "Completed", "type": "text" },
+            { "key": "attachment", "type": "file" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Edit Request",
+      "request": {
+        "method": "POST",
+        "url": { "raw": "http://localhost:5001/edit-request/1", "protocol": "http", "host": ["localhost"], "port": "5001", "path": ["edit-request", "1"] },
+        "header": [
+          { "key": "Cookie", "value": "jwt_token={{jwt_token}}" },
+          { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "reference_no", "value": "REF123" },
+            { "key": "date_of_request", "value": "2025-09-22" },
+            { "key": "request_type", "value": "Purchase" },
+            { "key": "description", "value": "Buy laptops" },
+            { "key": "quantity", "value": "5" },
+            { "key": "estimated_cost", "value": "5000" },
+            { "key": "priority_level", "value": "High" },
+            { "key": "supporting_documents", "value": "Yes" },
+            { "key": "remarks", "value": "Urgent" }
+          ]
+        }
+      }
+    }
+  ]
+}

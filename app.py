@@ -1,13 +1,18 @@
-from sympy import div
 import sendEmail
-from flask import Flask, render_template, redirect, url_for, request, session, jsonify
+from flask import Flask, render_template, redirect, url_for, request, session, jsonify, make_response
 import os
 import mysql.connector
+import jwt
+from datetime import datetime, timedelta
+
+from functools import wraps
+
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # Change this in production
 app.config['UPLOAD_FOLDER'] = 'attachments'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+app.config['JWT_SECRET'] = 'your_jwt_secret'  # Change this in production
 
 # MySQL connection config
 db_config = {
@@ -17,8 +22,41 @@ db_config = {
     'database': 'approval_system'
 }
 
+
 def get_db():
     return mysql.connector.connect(**db_config)
+
+# JWT helper functions
+def generate_jwt(email, role):
+    payload = {
+        'email': email,
+        'role': role,
+        'exp': datetime.utcnow() + timedelta(hours=2)
+    }
+    token = jwt.encode(payload, app.config['JWT_SECRET'], algorithm='HS256')
+    return token
+
+def verify_jwt(token):
+    try:
+        payload = jwt.decode(token, app.config['JWT_SECRET'], algorithms=['HS256'])
+        return payload
+    except Exception:
+        return None
+
+# Decorator for protected routes
+def jwt_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.cookies.get('jwt_token') or request.headers.get('Authorization')
+        if not token:
+            return redirect(url_for('signin'))
+        payload = verify_jwt(token)
+        if not payload:
+            return redirect(url_for('signin'))
+        session['email'] = payload['email']
+        session['role'] = payload['role']
+        return f(*args, **kwargs)
+    return decorated
 
 @app.route('/', methods=['GET', 'POST'])
 def signin():
@@ -30,24 +68,19 @@ def signin():
         cursor = db.cursor(dictionary=True)
         cursor.execute("SELECT * FROM users WHERE email=%s AND password=%s", (email, password))
         user = cursor.fetchone()
-        #print("Login attempt:", email, password, "Result:", user)  # Debug
         cursor.close()
         db.close()
         if user:
-            session['email'] = user['email']
-            session['role'] = user['role']
-            #print("Session set: email=", session.get('email'), "role=", session.get('role'))  # Debug
-            if not session.get('role'):
-                error = 'User role missing. Please check user record.'
-                return render_template('signin.html', error=error)
-            return redirect(url_for('dashboard'))
+            token = generate_jwt(user['email'], user['role'])
+            resp = make_response(redirect(url_for('dashboard')))
+            resp.set_cookie('jwt_token', token, httponly=True, samesite='Lax')
+            return resp
         error = 'Invalid credentials'
     return render_template('signin.html', error=error)
 
 @app.route('/dashboard')
+@jwt_required
 def dashboard():
-    if 'email' not in session:
-        return redirect(url_for('signin'))
     db = get_db()
     cursor = db.cursor(dictionary=True)
     role = session['role']
@@ -78,13 +111,11 @@ def dashboard():
 
     cursor.close()
     db.close()
-    role = session['role']
     return render_template('dashboard.html', requests=requests_db, role=role, trend_data=trend_data, dept_data=dept_data)
 
 @app.route('/add-request', methods=['GET', 'POST'])
+@jwt_required
 def add_request():
-    if 'email' not in session:
-        return redirect(url_for('signin'))
     role = session['role']
     if role == 'Finance' or role == 'finance':
         return redirect(url_for('dashboard'))
@@ -227,9 +258,8 @@ def add_request():
     return render_template('add_request.html', role=role, departments=departments, user_name=user_name, user_dept=user_dept)
 
 @app.route('/approve/<int:req_id>')
+@jwt_required
 def approve(req_id):
-    if 'email' not in session:
-        return redirect(url_for('signin'))
     role = session['role']
     user_email = session.get('email')
     if role in ['manager', 'senior_manager']:
@@ -283,12 +313,13 @@ def approve(req_id):
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('signin'))
+    resp = make_response(redirect(url_for('signin')))
+    resp.delete_cookie('jwt_token')
+    return resp
 
 @app.route('/requests')
+@jwt_required
 def requests_page():
-    if 'email' not in session:
-        return redirect(url_for('signin'))
     db = get_db()
     cursor = db.cursor(dictionary=True)
     role = session['role']
@@ -308,9 +339,8 @@ def requests_page():
 
 # Add User route
 @app.route('/add-user', methods=['GET', 'POST'])
+@jwt_required
 def add_user():
-    if 'email' not in session:
-        return redirect(url_for('signin'))
     role = session.get('role')
     if role not in ['manager', 'senior_manager', 'finance']:
         return redirect(url_for('dashboard'))
@@ -320,6 +350,7 @@ def add_user():
     cursor = db.cursor(dictionary=True)
     user_email = session.get('email')
     user_dept = None
+    departments = []
     if role == 'manager':
         cursor.execute("SELECT department FROM users WHERE email=%s", (user_email,))
         user_row = cursor.fetchone()
@@ -327,84 +358,44 @@ def add_user():
         if user_dept:
             cursor.execute("SELECT * FROM departments WHERE name = %s", (user_dept,))
             departments = cursor.fetchall()
-        else:
-            departments = []
     elif role == 'senior_manager':
         cursor.execute("SELECT * FROM departments")
         departments = cursor.fetchall()
-    else:
-        # finance role
+    elif role == 'finance':
         departments = ['Finance']
+
     if request.method == 'POST':
         name = request.form['name']
-        data = request.get_json()
-        req_id = data.get('id')
-        new_status = data.get('status')
-        if not req_id or not new_status:
-            return jsonify({'success': False, 'error': 'Missing data'})
-        db = get_db()
-        cursor = db.cursor(dictionary=True)
+        email = request.form['email']
+        password = request.form['password']
+        role_new = request.form['role']
+        department = request.form.get('department', None)
+        # Insert new user into database
         try:
-            cursor.execute("UPDATE requests SET approval_status=%s WHERE id=%s", (new_status, req_id))
+            cursor.execute("INSERT INTO users (name, email, password, role, department) VALUES (%s, %s, %s, %s, %s)",
+                           (name, email, password, role_new, department))
             db.commit()
-            log_status_update(req_id, new_status, session.get('email'))
-            # Email notification for status update (no attachment)
-            cursor.execute("SELECT * FROM requests WHERE id=%s", (req_id,))
-            req = cursor.fetchone()
-            subject = f"Request Status Updated: {req['reference_no']}"
-            body = f"""
-            <div style='font-family:Segoe UI,Arial,sans-serif;background:#f8fafc;padding:32px;'>
-                <div style='max-width:520px;margin:auto;background:#fff;border-radius:12px;box-shadow:0 4px 24px #0001;padding:32px;'>
-                    <h2 style='color:#2563eb;margin-bottom:18px;'>Approval System Notification</h2>
-                    <p style='font-size:1.1rem;color:#334155;'>A request status has been updated:</p>
-                    <table style='width:100%;margin:18px 0 24px 0;border-collapse:collapse;'>
-                        <tr><td style='font-weight:600;padding:6px 0;'>Reference No.:</td><td>{req['reference_no']}</td></tr>
-                        <tr><td style='font-weight:600;padding:6px 0;'>Request Type:</td><td>{req['request_type']}</td></tr>
-                        <tr><td style='font-weight:600;padding:6px 0;'>Description:</td><td>{req['description']}</td></tr>
-                        <tr><td style='font-weight:600;padding:6px 0;'>Requested By:</td><td>{req['requested_by']}</td></tr>
-                        <tr><td style='font-weight:600;padding:6px 0;'>New Status:</td><td>{new_status}</td></tr>
-                    </table>
-                    <div style='color:#64748b;font-size:0.98rem;'>This is an automated notification from the Approval System.</div>
-                </div>
-            </div>
-            """
-            recipients = []
-            role = session.get('role')
-            user_email = session.get('email')
-            if role.lower().replace(' ', '_') == 'manager':
-                cursor.execute("SELECT email FROM users WHERE LOWER(REPLACE(role, ' ', '_'))='senior_manager'")
-                seniors = [row['email'] for row in cursor.fetchall()]
-                recipients = seniors + [user_email]
-            elif role.lower().replace(' ', '_') == 'senior_manager':
-                cursor.execute("SELECT email FROM users WHERE LOWER(REPLACE(role, ' ', '_'))='finance'")
-                finance = [row['email'] for row in cursor.fetchall()]
-                recipients = finance + [user_email]
-            if recipients:
-                for r in recipients:
-                    sendEmail.sendMail(body, r, [])
-            cursor.close()
-            db.close()
-            return jsonify({'success': True})
+            success = 'User registered successfully.'
         except Exception as e:
-            cursor.close()
-            db.close()
-            return jsonify({'success': False, 'error': str(e)})
-        db.close()
-    return render_template('add_department.html', role=role, error=error, success=success)
+            error = f'Error registering user: {str(e)}'
+        # Optionally, send email notification to new user or admins here
+        return render_template('add_user.html', role=role, error=error, success=success, departments=departments)
+    return render_template('add_user.html', role=role, error=error, success=success, departments=departments)
+
+def log_status_update(req_id, new_status, user_email, attachment_path=None):
+    db_log = get_db()
+    cursor_log = db_log.cursor()
+    import datetime
+    log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    cursor_log.execute("INSERT INTO request_status_log (request_id, status, updated_by, updated_at, attachment) VALUES (%s, %s, %s, %s, %s)", (req_id, new_status, user_email, log_time, attachment_path))
+    db_log.commit()
+    cursor_log.close()
+    db_log.close()
 
 # Add this route to handle AJAX status updates
 @app.route('/update-status', methods=['POST'])
+@jwt_required
 def update_status():
-    # Log every status update (helper)
-    def log_status_update(req_id, new_status, user_email, attachment_path=None):
-        db_log = get_db()
-        cursor_log = db_log.cursor()
-        import datetime
-        log_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        cursor_log.execute("INSERT INTO request_status_log (request_id, status, updated_by, updated_at, attachment) VALUES (%s, %s, %s, %s, %s)", (req_id, new_status, user_email, log_time, attachment_path))
-        db_log.commit()
-        cursor_log.close()
-        db_log.close()
     if request.content_type and request.content_type.startswith('multipart/form-data'):
         req_id = request.form.get('id')
         new_status = request.form.get('status')
@@ -504,9 +495,8 @@ def update_status():
             return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/edit-request/<int:req_id>', methods=['GET', 'POST'])
+@jwt_required
 def edit_request(req_id):
-    if 'email' not in session:
-        return redirect(url_for('signin'))
     db = get_db()
     cursor = db.cursor(dictionary=True)
     cursor.execute("SELECT * FROM requests WHERE id=%s", (req_id,))
@@ -550,6 +540,31 @@ def edit_request(req_id):
     cursor.close()
     db.close()
     return render_template('edit_request.html', req=req)
+
+@app.route('/add-department', methods=['GET', 'POST'])
+@jwt_required
+def add_department():
+    role = session.get('role')
+    if role != 'senior_manager':
+        return redirect(url_for('dashboard'))
+    error = None
+    success = None
+    if request.method == 'POST':
+        name = request.form.get('name')
+        if not name:
+            error = 'Department name is required.'
+            return render_template('add_department.html', role=role, error=error, success=success)
+        try:
+            db = get_db()
+            cursor = db.cursor()
+            cursor.execute("INSERT INTO departments (name) VALUES (%s)", (name,))
+            db.commit()
+            cursor.close()
+            db.close()
+            success = 'Department added successfully.'
+        except Exception as e:
+            error = f'Error adding department: {str(e)}'
+    return render_template('add_department.html', role=role, error=error, success=success)
 
 if __name__ == '__main__':
     app.run(debug=True,port=5001)
