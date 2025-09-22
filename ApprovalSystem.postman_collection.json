@@ -6,6 +6,23 @@
   },
   "item": [
     {
+      "name": "Add Department",
+      "request": {
+        "method": "POST",
+        "url": { "raw": "http://localhost:5001/add-department", "protocol": "http", "host": ["localhost"], "port": "5001", "path": ["add-department"] },
+        "header": [
+          { "key": "Cookie", "value": "jwt_token={{jwt_token}}" },
+          { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "name", "value": "Finance" }
+          ]
+        }
+      }
+    },
+    {
       "name": "Sign In",
       "request": {
         "method": "POST",
