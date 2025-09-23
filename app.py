@@ -1,3 +1,5 @@
+import uuid
+import bcrypt
 import sendEmail
 from flask import Flask, render_template, redirect, url_for, request, session, jsonify, make_response
 import os
@@ -61,20 +63,29 @@ def jwt_required(f):
 @app.route('/', methods=['GET', 'POST'])
 def signin():
     error = None
+    success = None
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
         db = get_db()
         cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM users WHERE email=%s AND password=%s", (email, password))
+        cursor.execute("SELECT * FROM users WHERE email=%s", (email,))
         user = cursor.fetchone()
         cursor.close()
         db.close()
         if user:
-            token = generate_jwt(user['email'], user['role'])
-            resp = make_response(redirect(url_for('dashboard')))
-            resp.set_cookie('jwt_token', token, httponly=True, samesite='Lax')
-            return resp
+            if not user.get('is_verified', 0):
+                error = 'Please verify your email before logging in.'
+                return render_template('signin.html', error=error)
+            # bcrypt password check
+            if bcrypt.checkpw(password.encode('utf-8'), user['password'].encode('utf-8')):
+                token = generate_jwt(user['email'], user['role'])
+                resp = make_response(redirect(url_for('dashboard')))
+                resp.set_cookie('jwt_token', token, httponly=True, samesite='Lax')
+                return resp
+            else:
+                error = 'Invalid credentials'
+                return render_template('signin.html', error=error)
         error = 'Invalid credentials'
     return render_template('signin.html', error=error)
 
@@ -84,6 +95,10 @@ def dashboard():
     db = get_db()
     cursor = db.cursor(dictionary=True)
     role = session['role']
+    user_email = session.get('email')
+    cursor.execute("SELECT name FROM users WHERE email=%s", (user_email,))
+    user_row = cursor.fetchone()
+    user_name = user_row['name'] if user_row and user_row['name'] else user_email
     if role == 'Finance' or role == 'finance':
         cursor.execute("SELECT * FROM requests WHERE LOWER(approval_status)='approved' ORDER BY created_date DESC LIMIT 5")
     else:
@@ -111,7 +126,7 @@ def dashboard():
 
     cursor.close()
     db.close()
-    return render_template('dashboard.html', requests=requests_db, role=role, trend_data=trend_data, dept_data=dept_data)
+    return render_template('dashboard.html', requests=requests_db, role=role, trend_data=trend_data, dept_data=dept_data, user_name=user_name)
 
 @app.route('/add-request', methods=['GET', 'POST'])
 @jwt_required
@@ -125,6 +140,7 @@ def add_request():
     departments = []
     user_name = ''
     user_dept = ''
+    suggested_reference_id = ""
     if role == 'manager' or role == 'employee':
         cursor.execute("SELECT name, department FROM users WHERE email=%s", (user_email,))
         user_row = cursor.fetchone()
@@ -137,6 +153,11 @@ def add_request():
         if user_dept:
             cursor.execute("SELECT * FROM departments WHERE name = %s", (user_dept,))
             departments = cursor.fetchall()
+        # Generate suggested reference id: dept + next number
+        cursor.execute("SELECT COUNT(*) as count FROM requests WHERE requested_by=%s", (user_email,))
+        req_count_row = cursor.fetchone()
+        next_number = (req_count_row['count'] if req_count_row and 'count' in req_count_row else 0) + 1
+        suggested_reference_id = f"{user_dept}-{next_number}"
     elif role == 'senior_manager':
         cursor.execute("SELECT name, department FROM users WHERE email=%s", (user_email,))
         user_row = cursor.fetchone()
@@ -148,6 +169,11 @@ def add_request():
             user_dept = 'Unknown'
         cursor.execute("SELECT * FROM departments")
         departments = cursor.fetchall()
+        # Generate suggested reference id for senior manager as well
+        cursor.execute("SELECT COUNT(*) as count FROM requests WHERE requested_by=%s", (user_email,))
+        req_count_row = cursor.fetchone()
+        next_number = (req_count_row['count'] if req_count_row and 'count' in req_count_row else 0) + 1
+        suggested_reference_id = f"{user_dept}-{next_number}"
     success = None
     if request.method == 'POST':
         reference_no = request.form['reference_no']
@@ -252,10 +278,10 @@ def add_request():
         if recipients:
             for r in recipients:
                 sendEmail.sendMail(body, r, [])
-        return render_template('add_request.html', role=role, departments=departments, user_name=user_name, user_dept=user_dept, success=success)
+        return render_template('add_request.html', role=role, departments=departments, user_name=user_name, user_dept=user_dept, success=success, suggested_reference_id=suggested_reference_id)
     cursor.close()
     db.close()
-    return render_template('add_request.html', role=role, departments=departments, user_name=user_name, user_dept=user_dept)
+    return render_template('add_request.html', role=role, departments=departments, user_name=user_name, user_dept=user_dept, suggested_reference_id=suggested_reference_id)
 
 @app.route('/approve/<int:req_id>')
 @jwt_required
@@ -323,10 +349,13 @@ def requests_page():
     db = get_db()
     cursor = db.cursor(dictionary=True)
     role = session['role']
+    user_email = session.get('email')
+    cursor.execute("SELECT name FROM users WHERE email=%s", (user_email,))
+    user_row = cursor.fetchone()
+    user_name = user_row['name'] if user_row and user_row['name'] else user_email
     # Normalize role for frontend logic
     if role.replace(' ', '_').lower() == 'senior_manager':
         role = 'senior_manager'
-    #print("User role:", role)  # Debugging line
     if role == 'finance':
         cursor.execute("SELECT *, LOWER(approval_status) as approval_status, IFNULL(created_by, owner) AS created_by, IFNULL(created_date, date_of_request) AS created_date FROM requests WHERE LOWER(approval_status)='approved' or LOWER(approval_status)='completed'")
     else:
@@ -334,7 +363,7 @@ def requests_page():
     requests_db = cursor.fetchall()
     cursor.close()
     db.close()
-    return render_template('requests.html', requests=requests_db, role=role)
+    return render_template('requests.html', requests=requests_db, role=role, user_name=user_name)
 
 
 # Add User route
@@ -364,23 +393,40 @@ def add_user():
     elif role == 'finance':
         departments = ['Finance']
 
+    cursor.execute("SELECT name FROM users WHERE email=%s", (user_email,))
+    user_row = cursor.fetchone()
+    user_name = user_row['name'] if user_row and user_row['name'] else user_email
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
         password = request.form['password']
         role_new = request.form['role']
         department = request.form.get('department', None)
-        # Insert new user into database
+        # Check for duplicate email
+        cursor.execute("SELECT id FROM users WHERE email=%s", (email,))
+        if cursor.fetchone():
+            error = 'A user with this email already exists.'
+            return render_template('add_user.html', role=role, error=error, success=None, departments=departments, user_name=user_name)
+        # Generate verification token
+        verification_token = str(uuid.uuid4())
+        # Hash password with bcrypt
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        # Insert new user into database with is_verified=False and verification_token
         try:
-            cursor.execute("INSERT INTO users (name, email, password, role, department) VALUES (%s, %s, %s, %s, %s)",
-                           (name, email, password, role_new, department))
+            cursor.execute("INSERT INTO users (name, email, password, role, department, is_verified, verification_token) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                           (name, email, hashed_password, role_new, department, False, verification_token))
             db.commit()
-            success = 'User registered successfully.'
+            # Send verification email
+            verification_link = f"http://127.0.0.1:5001/verify-email?token={verification_token}"
+            subject = "Verify your email for Approval System"
+            body = f"<div style='font-family:Segoe UI,Arial,sans-serif;background:#f8fafc;padding:32px;'><h2 style='color:#2563eb;'>Email Verification</h2><p>Please verify your email by clicking the link below:</p><a href='{verification_link}' style='color:#2575fc;font-weight:600;'>Verify Email</a></div>"
+            sendEmail.sendMail(body, email, [])
+            success = 'User registered successfully. Please check your email to verify your account.'
         except Exception as e:
+            print('Add User Exception:', e)
             error = f'Error registering user: {str(e)}'
-        # Optionally, send email notification to new user or admins here
-        return render_template('add_user.html', role=role, error=error, success=success, departments=departments)
-    return render_template('add_user.html', role=role, error=error, success=success, departments=departments)
+        return render_template('add_user.html', role=role, error=error, success=success, departments=departments, user_name=user_name)
+    return render_template('add_user.html', role=role, error=error, success=success, departments=departments, user_name=user_name)
 
 def log_status_update(req_id, new_status, user_email, attachment_path=None):
     db_log = get_db()
@@ -390,10 +436,27 @@ def log_status_update(req_id, new_status, user_email, attachment_path=None):
     cursor_log.execute("INSERT INTO request_status_log (request_id, status, updated_by, updated_at, attachment) VALUES (%s, %s, %s, %s, %s)", (req_id, new_status, user_email, log_time, attachment_path))
     db_log.commit()
     cursor_log.close()
-    db_log.close()
+@app.route('/verify-email', methods=['GET','POST'])
+def verify_email():
+    token = request.args.get('token')
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+    cursor.execute("SELECT id, email FROM users WHERE verification_token=%s", (token,))
+    user = cursor.fetchone()
+    if user:
+        cursor.execute("UPDATE users SET is_verified=1 WHERE id=%s", (user['id'],))
+        db.commit()
+        # Send email to user
+        subject = "Your Approval System account is now verified"
+        body = f"<div style='font-family:Segoe UI,Arial,sans-serif;background:#f8fafc;padding:32px;'><h2 style='color:#27ae60;'>Verification Successful</h2><p>Your email has been verified. You can now login to the Approval System.</p></div>"
+        sendEmail.sendMail(body, user['email'], [])
+        msg = "Your email has been verified. You can now login."
+    else:
+        msg = "Invalid or expired verification link."
+    cursor.close()
+    db.close()
+    return render_template('signin.html', error=None, success=msg)
 
-# Add this route to handle AJAX status updates
-@app.route('/update-status', methods=['POST'])
 @jwt_required
 def update_status():
     if request.content_type and request.content_type.startswith('multipart/form-data'):
@@ -423,7 +486,6 @@ def update_status():
             # Email notification logic after status update
             cursor.execute("SELECT * FROM requests WHERE id=%s", (req_id,))
             req = cursor.fetchone()
-
             subject = f"Request Status Updated: {req[6]}"
             body = f"""
             <div style='font-family:Segoe UI,Arial,sans-serif;background:#f8fafc;padding:32px;'>
@@ -444,28 +506,49 @@ def update_status():
             recipients = []
             role = session.get('role')
             user_email = session.get('email')
-            print("role", role)
-            if role.lower().replace(' ', '_') == 'finance' and new_status == 'Completed':
-                # Notify all senior managers with attachment
-                cursor.execute("SELECT email FROM users WHERE LOWER(REPLACE(role, ' ', '_'))='senior_manager'")
-                seniors = [row[0] for row in cursor.fetchall()]
-                recipients = seniors
-            elif role == 'manager':
-                # Notify senior manager and manager
-                cursor.execute("SELECT id,email FROM users WHERE role='senior_manager' OR role='Senior Manager'")
-                seniors = [row[1] for row in cursor.fetchall()]
-                recipients = seniors + [user_email]
-            elif role == 'senior_manager' or role == 'Senior Manager':
-                # Notify finance and senior manager
-                cursor.execute("SELECT id,email FROM users WHERE role='finance' OR role='Finance'")
-                finance = [row[1] for row in cursor.fetchall()]
-                recipients = finance + [user_email]
-            print("role", role)
-            print("recipients", recipients)
-            if recipients:
-                for r in recipients:
-                    docPath = [attachment_path] if attachment_path else []
-                    sendEmail.sendMail(body, r, docPath)
+            # Rejection notification logic
+            if new_status == 'Rejected':
+                if role == 'manager':
+                    # Notify the user who generated the request
+                    recipients = [req[11]] if req[11] else []  # owner field
+                    subject = f"Your Request Was Rejected: {req[6]}"
+                    body = f"<div style='font-family:Segoe UI,Arial,sans-serif;background:#f8fafc;padding:32px;'><div style='max-width:520px;margin:auto;background:#fff;border-radius:12px;box-shadow:0 4px 24px #0001;padding:32px;'><h2 style='color:#dc2626;margin-bottom:18px;'>Request Rejected</h2><p style='font-size:1.1rem;color:#334155;'>Your request <b>{req[6]}</b> was rejected by the manager.</p></div></div>"
+                elif role == 'senior_manager' or role == 'Senior Manager':
+                    # Notify the manager who approved or generated the request
+                    manager_email = None
+                    # Try to get manager from requested_by or owner
+                    cursor.execute("SELECT email FROM users WHERE name=%s AND role='manager'", (req[8],))
+                    manager_row = cursor.fetchone()
+                    if manager_row:
+                        manager_email = manager_row['email']
+                    else:
+                        manager_email = req[11]  # fallback to owner
+                    if manager_email:
+                        recipients = [manager_email]
+                        subject = f"Request You Approved Was Rejected: {req[6]}"
+                        body = f"<div style='font-family:Segoe UI,Arial,sans-serif;background:#f8fafc;padding:32px;'><div style='max-width:520px;margin:auto;background:#fff;border-radius:12px;box-shadow:0 4px 24px #0001;padding:32px;'><h2 style='color:#dc2626;margin-bottom:18px;'>Request Rejected</h2><p style='font-size:1.1rem;color:#334155;'>A request you approved or generated (<b>{req[6]}</b>) was rejected by the senior manager.</p></div></div>"
+                # Send rejection email
+                if recipients:
+                    for r in recipients:
+                        sendEmail.sendMail(body, r, [])
+            else:
+                # Existing notification logic for other statuses
+                if role.lower().replace(' ', '_') == 'finance' and new_status == 'Completed':
+                    cursor.execute("SELECT email FROM users WHERE LOWER(REPLACE(role, ' ', '_'))='senior_manager'")
+                    seniors = [row[0] for row in cursor.fetchall()]
+                    recipients = seniors
+                elif role == 'manager':
+                    cursor.execute("SELECT id,email FROM users WHERE role='senior_manager' OR role='Senior Manager'")
+                    seniors = [row[1] for row in cursor.fetchall()]
+                    recipients = seniors + [user_email]
+                elif role == 'senior_manager' or role == 'Senior Manager':
+                    cursor.execute("SELECT id,email FROM users WHERE role='finance' OR role='Finance'")
+                    finance = [row[1] for row in cursor.fetchall()]
+                    recipients = finance + [user_email]
+                if recipients:
+                    for r in recipients:
+                        docPath = [attachment_path] if attachment_path else []
+                        sendEmail.sendMail(body, r, docPath)
             cursor.close()
             db.close()
             return jsonify({'success': True})
@@ -567,4 +650,4 @@ def add_department():
     return render_template('add_department.html', role=role, error=error, success=success)
 
 if __name__ == '__main__':
-    app.run(debug=True,port=5001)
+    app.run(debug=True,port=5001,host='0.0.0.0')

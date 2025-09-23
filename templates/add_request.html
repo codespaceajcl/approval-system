@@ -145,8 +145,11 @@
                         </div>
                         {% endif %}
             <form method="post" enctype="multipart/form-data" id="addRequestForm">
-                <label>Request ID / Reference No.</label>
-                <input type="text" name="reference_no" placeholder="Reference No." required>
+                                <label>Request ID / Reference No.</label>
+                                <input type="text" name="reference_no" placeholder="Reference No." required value="{{ suggested_reference_id }}">
+                                {% if suggested_reference_id %}
+                                    <div style="margin:6px 0 12px 0;font-size:0.98rem;color:#2563eb;">Suggested: <b>{{ suggested_reference_id }}</b></div>
+                                {% endif %}
 
                 <label>Date of Request</label>
                 <input type="date" name="date_of_request" required>
@@ -209,7 +212,24 @@
         </div>
       </div>
       <script>
-      document.addEventListener('DOMContentLoaded', function() {
+            // Loader overlay
+            function showLoader() {
+                let loader = document.getElementById('loaderOverlay');
+                if (!loader) {
+                    loader = document.createElement('div');
+                    loader.id = 'loaderOverlay';
+                    loader.style = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(30,41,59,0.18);z-index:9999;display:flex;align-items:center;justify-content:center;';
+                    loader.innerHTML = '<div style="background:#fff;padding:32px 48px;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div class="loader" style="border:6px solid #e2e8f0;border-top:6px solid #2575fc;border-radius:50%;width:48px;height:48px;animation:spin 1s linear infinite;margin:auto;"></div><div style="margin-top:18px;font-size:1.1rem;color:#334155;">Processing...</div></div>';
+                    document.body.appendChild(loader);
+                } else {
+                    loader.style.display = 'flex';
+                }
+            }
+            function hideLoader() {
+                let loader = document.getElementById('loaderOverlay');
+                if (loader) loader.style.display = 'none';
+            }
+            document.addEventListener('DOMContentLoaded', function() {
           var supportingSelect = document.getElementById('supportingDocuments');
           var attachmentDiv = document.getElementById('attachmentField');
           supportingSelect.addEventListener('change', function() {
@@ -225,7 +245,19 @@
           } else {
               attachmentDiv.style.display = 'none';
           }
-      });
+                // Loader animation
+                const style = document.createElement('style');
+                style.innerHTML = '@keyframes spin {0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}';
+                document.head.appendChild(style);
+
+                // Add loader on form submit
+                var addRequestForm = document.getElementById('addRequestForm');
+                if (addRequestForm) {
+                    addRequestForm.addEventListener('submit', function() {
+                        showLoader();
+                    });
+                }
+            });
       </script>
     </body>
 </html>

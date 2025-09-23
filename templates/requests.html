@@ -257,7 +257,7 @@
         <div class="title">Requests</div>
       </div>
       <div class="user">
-        <span>Muhammad Sohaib</span>
+        <span>{{ user_name }}</span>
         <img src="https://via.placeholder.com/36" alt="User"/>
       </div>
     </div>
@@ -329,12 +329,14 @@
         formData.append('id', id);
         formData.append('status', 'Completed');
         formData.append('attachment', file);
+        showLoader();
         fetch('/update-status', {
           method: 'POST',
           body: formData
         })
         .then(response => response.json())
         .then(data => {
+          hideLoader();
           document.getElementById('attachmentModal').style.display = 'none';
           if (data.success) {
             document.getElementById('modalContent').innerHTML = `
@@ -348,6 +350,7 @@
           }
         })
         .catch(() => {
+          hideLoader();
           document.getElementById('modalContent').innerHTML = `<div style='color:#e11d48;text-align:center;padding:32px 0;'>Error updating status.</div>`;
         });
       }
@@ -401,7 +404,7 @@
           document.getElementById('modalContent').innerHTML = html + btnHtml;
           // Debug output for troubleshooting
           var debugInfo = `<div style='margin-top:18px;color:#64748b;font-size:0.95rem;'>[Debug] Role: <b>${role}</b>, Status: <b>${req.status}</b>, Approval Status: <b>${req.approval_status}</b></div>`;
-          document.getElementById('modalContent').innerHTML = html + btnHtml + debugInfo;
+          document.getElementById('modalContent').innerHTML = html + btnHtml;
           // Attachment modal HTML
           if (!document.getElementById('attachmentModal')) {
             var attachModal = document.createElement('div');
@@ -475,7 +478,25 @@
         });
       }
       }
+      // Loader overlay
+      function showLoader() {
+        let loader = document.getElementById('loaderOverlay');
+        if (!loader) {
+          loader = document.createElement('div');
+          loader.id = 'loaderOverlay';
+          loader.style = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(30,41,59,0.18);z-index:9999;display:flex;align-items:center;justify-content:center;';
+          loader.innerHTML = '<div style="background:#fff;padding:32px 48px;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;"><div class="loader" style="border:6px solid #e2e8f0;border-top:6px solid #2575fc;border-radius:50%;width:48px;height:48px;animation:spin 1s linear infinite;margin:auto;"></div><div style="margin-top:18px;font-size:1.1rem;color:#334155;">Processing...</div></div>';
+          document.body.appendChild(loader);
+        } else {
+          loader.style.display = 'flex';
+        }
+      }
+      function hideLoader() {
+        let loader = document.getElementById('loaderOverlay');
+        if (loader) loader.style.display = 'none';
+      }
       window.updateStatus = function(id, newStatus) {
+        showLoader();
         // Always use FormData and multipart request for status updates
         var formData = new FormData();
         formData.append('id', id);
@@ -492,6 +513,7 @@
         })
         .then(response => response.json())
         .then(data => {
+          hideLoader();
           if (data.success) {
             document.getElementById('modalContent').innerHTML = `
               <div style="text-align:center;padding:32px 0;">
@@ -504,9 +526,14 @@
           }
         })
         .catch(() => {
+          hideLoader();
           document.getElementById('modalContent').innerHTML = `<div style='color:#e11d48;text-align:center;padding:32px 0;'>Error updating status.</div>`;
         });
       }
+      // Loader animation
+      const style = document.createElement('style');
+  style.innerHTML = '@keyframes spin {0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}';
+  document.head.appendChild(style);
       function closeModal() {
         document.getElementById('detailsModal').style.display = 'none';
       }

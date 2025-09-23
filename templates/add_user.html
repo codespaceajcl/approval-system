@@ -139,13 +139,27 @@
         </div>
       </div>
       {% endif %}
+      {% if error %}
+      <div id="errorModal" style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(30,41,59,0.4);z-index:999;display:flex;align-items:center;justify-content:center;">
+        <div style="background:#fff;padding:32px 48px;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;">
+          <h3 style="color:#e11d48;margin-bottom:18px;">{{ error }}</h3>
+          <button onclick="document.getElementById('errorModal').style.display='none'" style="padding:10px 28px;background:#e11d48;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;">OK</button>
+        </div>
+      </div>
+      {% endif %}
       <form method="post" id="addUserForm">
         <label>Name</label>
         <input type="text" name="name" placeholder="Full Name" required>
         <label>Email</label>
         <input type="email" name="email" placeholder="Email Address" required>
         <label>Password</label>
-        <input type="password" name="password" placeholder="Password" required>
+        <div style="position:relative;">
+          <input type="password" name="password" id="passwordInput" placeholder="Password" required>
+          <span id="togglePassword" style="position:absolute;top:40%;right:0px;transform:translateY(-50%);cursor:pointer;font-size:1.3rem;color:#2575fc;">
+            <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="#2575fc" stroke-width="2" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z"/><circle cx="12" cy="12" r="3" stroke="#2575fc" stroke-width="2"/></svg>
+            <svg id="eyeClosed" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" style="display:none;"><path stroke="#2575fc" stroke-width="2" d="M3 3l18 18M1 12s4-7 11-7c2.5 0 4.6.7 6.3 1.7M23 12s-4 7-11 7c-2.5 0-4.6-.7-6.3-1.7"/><circle cx="12" cy="12" r="3" stroke="#2575fc" stroke-width="2"/></svg>
+          </span>
+        </div>
         <label>Role</label>
         {% if role == 'Finance' or role == 'finance' %}
           <input type="text" name="role" value="finance" readonly style="background:#f1f5f9; color:#2575fc; font-weight:600; border:none;">
@@ -174,6 +188,39 @@
             </select>
         {% endif %}
         <button type="submit">Add User</button>
+      </form>
+    <div id="loaderOverlay" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(30,41,59,0.25);z-index:2000;align-items:center;justify-content:center;">
+      <div style="background:#fff;padding:32px 48px;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.12);text-align:center;">
+        <h3 style="color:#2575fc;margin-bottom:18px;">Processing...</h3>
+        <div style="width:48px;height:48px;border:6px solid #e0e7ef;border-top:6px solid #2575fc;border-radius:50%;animation:spin 1s linear infinite;margin:auto;"></div>
+      </div>
+    </div>
+    <style>@keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}</style>
+    <script>
+      document.getElementById('addUserForm').addEventListener('submit', function(e) {
+        document.getElementById('loaderOverlay').style.display = 'flex';
+      });
+      const passwordInput = document.getElementById('passwordInput');
+      const togglePassword = document.getElementById('togglePassword');
+      const eyeOpen = document.getElementById('eyeOpen');
+      const eyeClosed = document.getElementById('eyeClosed');
+      togglePassword.addEventListener('click', function() {
+        if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          eyeOpen.style.display = 'none';
+          eyeClosed.style.display = 'inline';
+        } else {
+          passwordInput.type = 'password';
+          eyeOpen.style.display = 'inline';
+          eyeClosed.style.display = 'none';
+        }
+      });
+    </script>
+      <script>
+        document.getElementById('addUserForm').addEventListener('submit', function() {
+          document.getElementById('loaderOverlay').style.display = 'flex';
+        });
+      </script>
       </form>
     </div>
   </div>
