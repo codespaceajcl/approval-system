@@ -6,6 +6,7 @@ import os
 import mysql.connector
 import jwt
 from datetime import datetime, timedelta
+from gevent.pywsgi import WSGIServer
 
 from functools import wraps
 
@@ -650,4 +651,9 @@ def add_department():
     return render_template('add_department.html', role=role, error=error, success=success)
 
 if __name__ == '__main__':
-    app.run(debug=True,port=5001,host='0.0.0.0')
+    secret_key="procurement123654789"
+    app.secret_key = secret_key
+    app.config['SESSION_TYPE'] = 'filesystem'
+    #http_server = WSGIServer(('0.0.0.0', 9000), app)
+    http_server = WSGIServer(('0.0.0.0', 9000), app, certfile="/etc/letsencrypt/live/stage-approvalsystem.immensecode.ai/fullchain.pem",keyfile="/etc/letsencrypt/live/stage-approvalsystem.immensecode.ai/privkey.pem")
+    http_server.serve_forever()
