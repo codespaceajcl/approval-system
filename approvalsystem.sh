@@ -1,1 +1,1 @@
-source /var/www/flask-app/venv/bin/activate/python3 ./app.py
+./approvalsystem/bin/python3 ./app.py
