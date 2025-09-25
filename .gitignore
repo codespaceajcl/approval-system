@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+.env
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Database
+*.sqlite3
+*.db
+
+# Attachments
+attachments/*
+!attachments/.gitkeep
+
+# Node
+client/node_modules/
+server/node_modules/
+
+# Build
+build/
+dist/
+
+# Misc
+*.bak
+*.swp
+
+# Secrets
+*.key
+*.pem
+
+# Others
+approvalsystem.sh
+
+# Ignore Postman collections
+*.postman_collection.json
+
+# Ignore static files
+static/js/*.js
+static/css/*.css
+
+# Ignore test accounts
+*.txt
