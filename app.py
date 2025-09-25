@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 from gevent.pywsgi import WSGIServer
 
 from functools import wraps
-from dotenv import load_dotenv
 
 
 app = Flask(__name__)
@@ -19,12 +18,11 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 app.config['JWT_SECRET'] = 'your_jwt_secret'  # Change this in production
 
 # MySQL connection config
-load_dotenv()
 db_config = {
-    'host': os.environ.get('DB_HOST', 'localhost'),
-    'user': os.environ.get('DB_USER', 'approval'),
-    'password': os.environ.get('DB_PASSWORD', 'Ajcl@113A#'),
-    'database': os.environ.get('DB_NAME', 'approval_system')
+    'host': 'localhost',
+    'user': 'root',
+    'password': 'Ajcl@113A@',
+    'database': 'approval'
 }
 
 
