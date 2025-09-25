@@ -654,6 +654,7 @@ if __name__ == '__main__':
     secret_key="procurement123654789"
     app.secret_key = secret_key
     app.config['SESSION_TYPE'] = 'filesystem'
-    #http_server = WSGIServer(('0.0.0.0', 9000), app)
-    http_server = WSGIServer(('0.0.0.0', 9000), app, certfile="/etc/letsencrypt/live/stage-approvalsystem.immensecode.ai/fullchain.pem",keyfile="/etc/letsencrypt/live/stage-approvalsystem.immensecode.ai/privkey.pem")
+    #http_server = WSGIServer(('127.0.0.1', 9000), app)
+    #http_server = WSGIServer(('127.0.0.1', 9000), app, certfile="/etc/letsencrypt/live/stage-approvalsystem.immensecode.ai/fullchain.pem",keyfile="/etc/letsencrypt/live/stage-approvalsystem.immensecode.ai/privkey.pem")
+    http_server = WSGIServer(('0.0.0.0', 8094), app)
     http_server.serve_forever()
