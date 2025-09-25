@@ -4,7 +4,7 @@ import sendEmail
 from flask import Flask, render_template, redirect, url_for, request, session, jsonify, make_response
 import os
 import mysql.connector
-import jwt
+import jwt as pyjwt
 from datetime import datetime, timedelta
 from gevent.pywsgi import WSGIServer
 
@@ -36,12 +36,12 @@ def generate_jwt(email, role):
         'role': role,
         'exp': datetime.utcnow() + timedelta(hours=2)
     }
-    token = jwt.encode(payload, app.config['JWT_SECRET'], algorithm='HS256')
+    token = pyjwt.encode(payload, app.config['JWT_SECRET'], algorithm='HS256')
     return token
 
 def verify_jwt(token):
     try:
-        payload = jwt.decode(token, app.config['JWT_SECRET'], algorithms=['HS256'])
+        payload = pyjwt.decode(token, app.config['JWT_SECRET'], algorithms=['HS256'])
         return payload
     except Exception:
         return None
